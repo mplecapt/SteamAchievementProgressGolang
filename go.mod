@@ -1,3 +1,3 @@
-module github.com/mplecapt/SteamAchievementProgressGolang/SteamAchieve
+module github.com/mplecapt/SteamAchievementProgressGolang
 
 go 1.17
