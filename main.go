@@ -1,4 +1,4 @@
-package SteamAchieve
+package main
 
 import (
 	"encoding/json"
