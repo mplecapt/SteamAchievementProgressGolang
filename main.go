@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 )
 
 const API_KEY string = "1D533C7025222E1B18145EB064E64FB9"
@@ -70,20 +71,22 @@ type game struct {
  * Final output data
  */
 type achieveNodeFinal struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"displayName"`
-	Description string `json:"description"`
-	Hidden      bool   `json:"hidden"`
-	Icon        string `json:"icon"`
-	IconGray    string `json:"icongray"`
-	Achieved    bool   `json:"achieved"`
-	Unlocktime  int64  `json:"unlocktime"`
+	Name        string   `json:"name"`
+	DisplayName string   `json:"displayName"`
+	Description string   `json:"description"`
+	Hidden      bool     `json:"hidden"`
+	Icon        string   `json:"icon"`
+	IconGray    string   `json:"icongray"`
+	Achieved    bool     `json:"achieved"`
+	Unlocktime  int64    `json:"unlocktime"`
+	Tags        []string `json:"tags"`
 }
 
 type dataFinal struct {
-	Achievements []achieveNodeFinal `json:"achievements"`
-	SteamID      string             `json"steamid"`
-	GameName     string             `json"gamename"`
+	Achievements []achieveNodeFinal         `json:"achievements"`
+	SteamID      string                     `json:"steamid"`
+	GameName     string                     `json:"gamename"`
+	Heists       map[string]map[string]bool `json:"heists"`
 }
 
 /**
@@ -105,6 +108,21 @@ func callSteam(function string, appid string, steamid string, output interface{}
 	return nil
 }
 
+func getTags(desc string) []string {
+	var tags []string
+
+	for _, exp := range []string{
+		`(?<=the )(.*?)(?=\s* job)`,
+		`four man crew`,
+		`(?<=the )(.*?)(?=\s* difficulty)`,
+	} {
+		res := regexp.MustCompile(exp).FindAllString(desc, -1)
+		tags = append(tags, res...)
+	}
+
+	return tags
+}
+
 func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 	var p1 player
 	err := callSteam("GetPlayerAchievements/v1", appid, steamid, &p1)
@@ -122,20 +140,28 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 		GameName:     p1.Playerstats.GameName,
 		SteamID:      p1.Playerstats.SteamID,
 		Achievements: make([]achieveNodeFinal, len(g.Game.AvailableGameStats.Achievements)),
+		Heists:       make(map[string]map[string]bool),
 	}
 	for i := range g.Game.AvailableGameStats.Achievements {
 		if g.Game.AvailableGameStats.Achievements[i].Name != p1.Playerstats.Achievements[i].ApiName {
 			return nil, err
 		}
+		desc := g.Game.AvailableGameStats.Achievements[i].Description
 		data.Achievements[i] = achieveNodeFinal{
 			Name:        g.Game.AvailableGameStats.Achievements[i].Name,
 			DisplayName: g.Game.AvailableGameStats.Achievements[i].DisplayName,
-			Description: g.Game.AvailableGameStats.Achievements[i].Description,
+			Description: desc,
 			Hidden:      g.Game.AvailableGameStats.Achievements[i].Hidden > 0,
 			Icon:        g.Game.AvailableGameStats.Achievements[i].Icon,
 			IconGray:    g.Game.AvailableGameStats.Achievements[i].IconGray,
 			Achieved:    p1.Playerstats.Achievements[i].Achieved > 0,
 			Unlocktime:  p1.Playerstats.Achievements[i].Unlocktime,
+			Tags:        getTags(desc),
+		}
+
+		res := regexp.MustCompile(`(?<=the )(.*?)(?=\s* job)|(?<=the )(.*?)(?=\s* difficulty)`).FindAllString(desc, -1)
+		if res != nil {
+			data.Heists[res[0]][res[1]] = data.Achievements[i].Achieved
 		}
 	}
 
