@@ -1,4 +1,4 @@
-package main
+package SteamAchievementProgressGolang
 
 import (
 	"encoding/json"
