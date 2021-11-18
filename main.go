@@ -161,7 +161,9 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 			//Tags:        getTags(a.Description),
 		}
 
-		checkHeistComplete(data.Heists, a.Description, p1.Playerstats.Achievements[i].IsAchieved())
+		if a.Name != "cac_30" && a.Name != "fish_4" {
+			checkHeistComplete(data.Heists, a.Description, p1.Playerstats.Achievements[i].IsAchieved())
+		}
 	}
 
 	newbody, err := json.Marshal(&data)
