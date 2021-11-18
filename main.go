@@ -82,11 +82,13 @@ type achieveNodeFinal struct {
 	//Tags        []string `json:"tags"`
 }
 
+type heistList map[string]map[string]bool
+
 type dataFinal struct {
-	Achievements []achieveNodeFinal         `json:"achievements"`
-	SteamID      string                     `json:"steamid"`
-	GameName     string                     `json:"gamename"`
-	Heists       map[string]map[string]bool `json:"heists"`
+	Achievements []achieveNodeFinal `json:"achievements"`
+	SteamID      string             `json:"steamid"`
+	GameName     string             `json:"gamename"`
+	Heists       heistList          `json:"heists"`
 }
 
 /**
@@ -140,7 +142,7 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 		GameName:     p1.Playerstats.GameName,
 		SteamID:      p1.Playerstats.SteamID,
 		Achievements: make([]achieveNodeFinal, len(g.Game.AvailableGameStats.Achievements)),
-		Heists:       make(map[string]map[string]bool),
+		Heists:       make(heistList),
 	}
 	for i := range g.Game.AvailableGameStats.Achievements {
 		if g.Game.AvailableGameStats.Achievements[i].Name != p1.Playerstats.Achievements[i].ApiName {
@@ -159,13 +161,7 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 			//Tags:        getTags(a.Description),
 		}
 
-		res := regexp.MustCompile(`Complete the (.*?)(?: job)*? on the (.*?) difficulty or above.`).FindStringSubmatch(a.Description)
-		if res != nil {
-			if data.Heists[res[1]] == nil {
-				data.Heists[res[1]] = make(map[string]bool)
-			}
-			data.Heists[res[1]][res[2]] = data.Achievements[i].Achieved
-		}
+		checkHeistComplete(data.Heists, a.Description, p1.Playerstats.Achievements[i].IsAchieved())
 	}
 
 	newbody, err := json.Marshal(&data)
@@ -174,4 +170,25 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 	}
 
 	return newbody, nil
+}
+
+/*
+* res[0] Full match
+* res[1] Heist name
+* res[2] more than just complete (edge case)
+* res[3] Difficulty
+* res[4] One down modifier
+ */
+func checkHeistComplete(heists heistList, desc string, achieved bool) {
+	res := regexp.MustCompile(`Complete (?:the|The) (.*?)(?: job)*?( job.+)*? on the (.*?) difficulty(?:.*(One Down))*.*?`).FindStringSubmatch(desc)
+	if res != nil && res[2] == "" {
+		if heists[res[1]] == nil {
+			heists[res[1]] = make(map[string]bool)
+		}
+		if res[4] != "" {
+			heists[res[1]][res[4]] = achieved
+		} else {
+			heists[res[1]][res[3]] = achieved
+		}
+	}
 }
