@@ -71,15 +71,15 @@ type game struct {
  * Final output data
  */
 type achieveNodeFinal struct {
-	Name        string   `json:"name"`
-	DisplayName string   `json:"displayName"`
-	Description string   `json:"description"`
-	Hidden      bool     `json:"hidden"`
-	Icon        string   `json:"icon"`
-	IconGray    string   `json:"icongray"`
-	Achieved    bool     `json:"achieved"`
-	Unlocktime  int64    `json:"unlocktime"`
-	Tags        []string `json:"tags"`
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"`
+	Description string `json:"description"`
+	Hidden      bool   `json:"hidden"`
+	Icon        string `json:"icon"`
+	IconGray    string `json:"icongray"`
+	Achieved    bool   `json:"achieved"`
+	Unlocktime  int64  `json:"unlocktime"`
+	//Tags        []string `json:"tags"`
 }
 
 type dataFinal struct {
@@ -108,7 +108,7 @@ func callSteam(function string, appid string, steamid string, output interface{}
 	return nil
 }
 
-func getTags(desc string) []string {
+/*func getTags(desc string) []string {
 	var tags []string
 
 	for _, exp := range []string{
@@ -121,7 +121,7 @@ func getTags(desc string) []string {
 	}
 
 	return tags
-}
+}*/
 
 func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 	var p1 player
@@ -146,22 +146,25 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 		if g.Game.AvailableGameStats.Achievements[i].Name != p1.Playerstats.Achievements[i].ApiName {
 			return nil, err
 		}
-		desc := g.Game.AvailableGameStats.Achievements[i].Description
+		a := g.Game.AvailableGameStats.Achievements[i]
 		data.Achievements[i] = achieveNodeFinal{
-			Name:        g.Game.AvailableGameStats.Achievements[i].Name,
-			DisplayName: g.Game.AvailableGameStats.Achievements[i].DisplayName,
-			Description: desc,
-			Hidden:      g.Game.AvailableGameStats.Achievements[i].Hidden > 0,
-			Icon:        g.Game.AvailableGameStats.Achievements[i].Icon,
-			IconGray:    g.Game.AvailableGameStats.Achievements[i].IconGray,
+			Name:        a.Name,
+			DisplayName: a.DisplayName,
+			Description: a.Description,
+			Hidden:      a.Hidden > 0,
+			Icon:        a.Icon,
+			IconGray:    a.IconGray,
 			Achieved:    p1.Playerstats.Achievements[i].Achieved > 0,
 			Unlocktime:  p1.Playerstats.Achievements[i].Unlocktime,
-			Tags:        getTags(desc),
+			//Tags:        getTags(a.Description),
 		}
 
-		res := regexp.MustCompile(`(?<=the )(.*?)(?=\s* job)|(?<=the )(.*?)(?=\s* difficulty)`).FindAllString(desc, -1)
+		res := regexp.MustCompile(`Complete the (.*?)(?: job)*? on the (.*?) difficulty or above.`).FindStringSubmatch(a.Description)
 		if res != nil {
-			data.Heists[res[0]][res[1]] = data.Achievements[i].Achieved
+			if data.Heists[res[1]] == nil {
+				data.Heists[res[1]] = make(map[string]bool)
+			}
+			data.Heists[res[1]][res[2]] = data.Achievements[i].Achieved
 		}
 	}
 
@@ -172,3 +175,5 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 
 	return newbody, nil
 }
+
+//https://regoio.herokuapp.com/
