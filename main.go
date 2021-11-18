@@ -175,5 +175,3 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 
 	return newbody, nil
 }
-
-//https://regoio.herokuapp.com/
