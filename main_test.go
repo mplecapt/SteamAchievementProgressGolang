@@ -43,7 +43,7 @@ func TestGetPlayerProgress(t *testing.T) {
 }
 
 func TestCheckHeistComplete(t *testing.T) {
-	heists := make(heistList)
+	heists := make(map[string][]bool)
 
 	testString := "Complete the Dragon Heist job in 6 minutes or less on the OVERKILL difficulty or above."
 	checkHeistComplete(heists, testString, false)
@@ -53,7 +53,7 @@ func TestCheckHeistComplete(t *testing.T) {
 
 	testString = "Complete the Dragon Heist job on the OVERKILL difficulty or above."
 	checkHeistComplete(heists, testString, false)
-	if heists["Dragon Heist"] == nil || heists["Dragon Heist"]["OVERKILL"] != false {
+	if heists["Dragon Heist"] == nil || heists["Dragon Heist"][3] != false {
 		t.Fatalf("Failed to find basic heist")
 	}
 
@@ -62,7 +62,7 @@ func TestCheckHeistComplete(t *testing.T) {
 	if heists["Ukrainian Job"] == nil {
 		t.Fatalf("Failed to find edge case (Ukrainian Job)")
 	}
-	if heists["Ukrainian Job"]["One Down"] != false {
+	if heists["Ukrainian Job"][3] != false {
 		t.Fatalf("Failed to find One Down difficulty")
 	}
 

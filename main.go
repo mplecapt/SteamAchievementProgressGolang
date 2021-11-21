@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strings"
 )
 
 const API_KEY string = "1D533C7025222E1B18145EB064E64FB9"
@@ -82,13 +83,27 @@ type achieveNodeFinal struct {
 	//Tags        []string `json:"tags"`
 }
 
-type heistList map[string]map[string]bool
-
 type dataFinal struct {
 	Achievements []achieveNodeFinal `json:"achievements"`
 	SteamID      string             `json:"steamid"`
 	GameName     string             `json:"gamename"`
-	Heists       heistList          `json:"heists"`
+	Heists       []heistFinal       `json:"heists"`
+}
+
+type heistFinal struct {
+	Name       string `json:"achievements"`
+	Completion []bool `json:"completion"`
+}
+
+var difficulty = map[string]int{
+	"normal":         0,
+	"hard":           1,
+	"very hard":      2,
+	"overkill":       3,
+	"mayhem":         4,
+	"death wish":     5,
+	"death sentence": 6,
+	"one down":       7,
 }
 
 /**
@@ -110,21 +125,6 @@ func callSteam(function string, appid string, steamid string, output interface{}
 	return nil
 }
 
-/*func getTags(desc string) []string {
-	var tags []string
-
-	for _, exp := range []string{
-		`(?<=the )(.*?)(?=\s* job)`,
-		`four man crew`,
-		`(?<=the )(.*?)(?=\s* difficulty)`,
-	} {
-		res := regexp.MustCompile(exp).FindAllString(desc, -1)
-		tags = append(tags, res...)
-	}
-
-	return tags
-}*/
-
 func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 	var p1 player
 	err := callSteam("GetPlayerAchievements/v1", appid, steamid, &p1)
@@ -142,8 +142,10 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 		GameName:     p1.Playerstats.GameName,
 		SteamID:      p1.Playerstats.SteamID,
 		Achievements: make([]achieveNodeFinal, len(g.Game.AvailableGameStats.Achievements)),
-		Heists:       make(heistList),
 	}
+
+	heistMap := make(map[string][]bool)
+
 	for i := range g.Game.AvailableGameStats.Achievements {
 		if g.Game.AvailableGameStats.Achievements[i].Name != p1.Playerstats.Achievements[i].ApiName {
 			return nil, err
@@ -162,8 +164,16 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 		}
 
 		if a.Name != "cac_30" && a.Name != "fish_4" {
-			checkHeistComplete(data.Heists, a.Description, p1.Playerstats.Achievements[i].IsAchieved())
+			checkHeistComplete(heistMap, a.Description, p1.Playerstats.Achievements[i].IsAchieved())
 		}
+	}
+
+	data.Heists = make([]heistFinal, 0, len(heistMap))
+	for key, value := range heistMap {
+		data.Heists = append(data.Heists, heistFinal{
+			Name:       key,
+			Completion: value,
+		})
 	}
 
 	newbody, err := json.Marshal(&data)
@@ -181,16 +191,16 @@ func GetPlayerProgress(appid, steamid string) ([]byte, error) {
 * res[3] Difficulty
 * res[4] One down modifier
  */
-func checkHeistComplete(heists heistList, desc string, achieved bool) {
+func checkHeistComplete(heists map[string][]bool, desc string, achieved bool) {
 	res := regexp.MustCompile(`Complete (?:the|The) (.*?)(?: job)*?( job.+)*? on the (.*?) difficulty(?:.*(One Down))*.*?`).FindStringSubmatch(desc)
 	if res != nil && res[2] == "" {
 		if heists[res[1]] == nil {
-			heists[res[1]] = make(map[string]bool)
+			heists[res[1]] = make([]bool, 8)
 		}
 		if res[4] != "" {
-			heists[res[1]][res[4]] = achieved
+			heists[res[1]][difficulty[strings.ToLower(res[4])]] = achieved
 		} else {
-			heists[res[1]][res[3]] = achieved
+			heists[res[1]][difficulty[strings.ToLower(res[3])]] = achieved
 		}
 	}
 }
