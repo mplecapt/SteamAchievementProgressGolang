@@ -204,3 +204,15 @@ func checkHeistComplete(heists map[string][]bool, desc string, achieved bool) {
 		}
 	}
 }
+
+/**
+
+TODO
+
+Test Edge cases :
+
+	* Death in the Desert
+	* Jailhouse Rock
+	* Mariachi Day
+
+*/
